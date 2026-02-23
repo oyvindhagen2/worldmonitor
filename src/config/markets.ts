@@ -25,9 +25,12 @@ export const COMMODITIES: Commodity[] = [
 ];
 
 export const MARKET_SYMBOLS: MarketSymbol[] = [
+  // Americas indices
   { symbol: '^GSPC', name: 'S&P 500', display: 'SPX' },
   { symbol: '^DJI', name: 'Dow Jones', display: 'DOW' },
   { symbol: '^IXIC', name: 'NASDAQ', display: 'NDX' },
+
+  // Americas stocks
   { symbol: 'AAPL', name: 'Apple', display: 'AAPL' },
   { symbol: 'MSFT', name: 'Microsoft', display: 'MSFT' },
   { symbol: 'NVDA', name: 'NVIDIA', display: 'NVDA' },
@@ -53,6 +56,27 @@ export const MARKET_SYMBOLS: MarketSymbol[] = [
   { symbol: 'HD', name: 'Home Depot', display: 'HD' },
   { symbol: 'NFLX', name: 'Netflix', display: 'NFLX' },
   { symbol: 'BAC', name: 'BofA', display: 'BAC' },
+
+  // Europe indices
+  { symbol: '^FTSE', name: 'FTSE 100', display: 'FTSE' },
+  { symbol: '^GDAXI', name: 'DAX 40', display: 'DAX' },
+  { symbol: '^FCHI', name: 'CAC 40', display: 'CAC' },
+  { symbol: '^STOXX50E', name: 'Euro Stoxx 50', display: 'STOXX50' },
+
+  // Nordics indices
+  { symbol: '^SSMI', name: 'SMI', display: 'SMI' },
+  { symbol: '^AEX', name: 'AEX', display: 'AEX' },
+  { symbol: '^OSLO', name: 'OSEBX', display: 'OSEBX' },
+
+  // Asia-Pacific indices
+  { symbol: '^N225', name: 'Nikkei 225', display: 'N225' },
+  { symbol: '^HSI', name: 'Hang Seng', display: 'HSI' },
+  { symbol: '^SSEC', name: 'Shanghai Composite', display: 'SSEC' },
+  { symbol: '^KS11', name: 'KOSPI', display: 'KOSPI' },
+  { symbol: '^BSESN', name: 'Sensex', display: 'SENSEX' },
+  { symbol: '^NSEI', name: 'Nifty 50', display: 'NIFTY' },
+  { symbol: '^AXJO', name: 'ASX 200', display: 'ASX' },
+  { symbol: '^TWII', name: 'TWSE', display: 'TWSE' },
 ];
 
 export const CRYPTO_IDS = ['bitcoin', 'ethereum', 'solana', 'ripple'] as const;

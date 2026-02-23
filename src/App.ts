@@ -74,6 +74,7 @@ import {
   TechReadinessPanel,
   MacroSignalsPanel,
   ETFFlowsPanel,
+  GlobalIndicesPanel,
   StablecoinPanel,
   UcdpEventsPanel,
   DisplacementPanel,
@@ -2127,6 +2128,9 @@ export class App {
     const marketsPanel = new MarketPanel();
     this.panels['markets'] = marketsPanel;
 
+    const globalIndicesPanel = new GlobalIndicesPanel();
+    this.panels['global-indices'] = globalIndicesPanel;
+
     const monitorPanel = new MonitorPanel(this.monitors);
     this.panels['monitors'] = monitorPanel;
     monitorPanel.onChanged((monitors) => {
@@ -3117,6 +3121,10 @@ export class App {
     const tasks: Array<{ name: string; task: Promise<void> }> = [
       { name: 'news', task: runGuarded('news', () => this.loadNews()) },
       { name: 'markets', task: runGuarded('markets', () => this.loadMarkets()) },
+      { name: 'global-indices', task: runGuarded('global-indices', async () => {
+        this.loadGlobalIndices();
+        return Promise.resolve();
+      }) },
       { name: 'predictions', task: runGuarded('predictions', () => this.loadPredictions()) },
       { name: 'pizzint', task: runGuarded('pizzint', () => this.loadPizzInt()) },
       { name: 'fred', task: runGuarded('fred', () => this.loadFredData()) },
@@ -3600,6 +3608,25 @@ export class App {
       this.statusPanel?.updateApi('CoinGecko', { status: crypto.length > 0 ? 'ok' : 'error' });
     } catch {
       this.statusPanel?.updateApi('CoinGecko', { status: 'error' });
+    }
+
+    // Update global indices panel with latest market data
+    this.loadGlobalIndices();
+  }
+
+  private loadGlobalIndices(): void {
+    // Filter latestMarkets to show only regional indices
+    const indicesSymbols = new Set([
+      '^GSPC', '^DJI', '^IXIC', // Americas
+      '^FTSE', '^GDAXI', '^FCHI', '^STOXX50E', '^SSMI', '^AEX', '^OSLO', // Europe & Nordics
+      '^N225', '^HSI', '^SSEC', '^KS11', '^BSESN', '^NSEI', '^AXJO', '^TWII', // Asia-Pacific
+    ]);
+
+    if (this.latestMarkets && this.latestMarkets.length > 0) {
+      const indices = this.latestMarkets.filter(m => indicesSymbols.has(m.symbol));
+      (this.panels['global-indices'] as GlobalIndicesPanel).renderIndices(indices);
+    } else {
+      (this.panels['global-indices'] as GlobalIndicesPanel).showLoading();
     }
   }
 
@@ -4594,6 +4621,7 @@ export class App {
     // Always refresh news, markets, predictions, pizzint
     this.scheduleRefresh('news', () => this.loadNews(), REFRESH_INTERVALS.feeds);
     this.scheduleRefresh('markets', () => this.loadMarkets(), REFRESH_INTERVALS.markets);
+    this.scheduleRefresh('global-indices', async () => { this.loadGlobalIndices(); }, REFRESH_INTERVALS.markets);
     this.scheduleRefresh('predictions', () => this.loadPredictions(), REFRESH_INTERVALS.predictions);
     this.scheduleRefresh('pizzint', () => this.loadPizzInt(), 10 * 60 * 1000);
 

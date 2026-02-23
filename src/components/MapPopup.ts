@@ -61,6 +61,7 @@ interface StockExchangePopupData {
   tradingHours?: string;
   timezone?: string;
   description?: string;
+  indices?: Array<{ symbol: string; name: string; display: string; price?: number | null; change?: number | null; sparkline?: number[] }>;
 }
 
 interface FinancialCenterPopupData {
@@ -2444,6 +2445,37 @@ export class MapPopup {
     const tierLabel = exchange.tier.toUpperCase();
     const tierClass = exchange.tier === 'mega' ? 'high' : exchange.tier === 'major' ? 'medium' : 'low';
 
+    let indicesHtml = '';
+    if (exchange.indices && exchange.indices.length > 0) {
+      const indicesItems = exchange.indices
+        .filter(idx => idx.price !== null && idx.price !== undefined)
+        .slice(0, 3) // Show top 3 indices
+        .map(idx => {
+          const change = idx.change ?? 0;
+          const changeClass = change >= 0 ? 'positive' : 'negative';
+          const changeSign = change >= 0 ? '+' : '';
+          return `
+            <div class="popup-index-item">
+              <span class="index-label">${escapeHtml(idx.display)}</span>
+              <span class="index-price">${(idx.price ?? 0).toFixed(2)}</span>
+              <span class="index-change ${changeClass}">${changeSign}${change.toFixed(2)}%</span>
+            </div>
+          `;
+        })
+        .join('');
+
+      if (indicesItems) {
+        indicesHtml = `
+          <div class="popup-section">
+            <span class="section-label">Primary Indices</span>
+            <div class="popup-indices-list">
+              ${indicesItems}
+            </div>
+          </div>
+        `;
+      }
+    }
+
     return `
       <div class="popup-header exchange">
         <span class="popup-title">${escapeHtml(exchange.shortName)}</span>
@@ -2461,6 +2493,7 @@ export class MapPopup {
           ${exchange.tradingHours ? `<div class="popup-stat"><span class="stat-label">${t('popups.tradingHours')}</span><span class="stat-value">${escapeHtml(exchange.tradingHours)}</span></div>` : ''}
         </div>
         ${exchange.description ? `<p class="popup-description">${escapeHtml(exchange.description)}</p>` : ''}
+        ${indicesHtml}
       </div>
     `;
   }

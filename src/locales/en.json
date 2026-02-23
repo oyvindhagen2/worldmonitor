@@ -71,6 +71,7 @@
   "panels": {
     "liveNews": "Live News",
     "markets": "Markets",
+    "globalIndices": "Global Indices",
     "map": "Global Situation",
     "techMap": "Global Tech",
     "techHubs": "Hot Tech Hubs",
@@ -218,6 +219,10 @@
       "copied": "Copied!",
       "opening": "Opening...",
       "error": "Failed to generate story."
+    },
+    "indexDetails": {
+      "topConstituents": "Top Constituents",
+      "sectorBreakdown": "Sector Breakdown"
     },
     "mobileWarning": {
       "title": "Mobile View",
