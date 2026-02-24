@@ -146,10 +146,12 @@ export function parseCoordinates(text: string): [number, number][] {
   const dms = /(\d{1,3})-(\d{1,2}(?:\.\d+)?)\s*([NS])\s+(\d{1,3})-(\d{1,2}(?:\.\d+)?)\s*([EW])/gi;
   let m: RegExpExecArray | null;
   while ((m = dms.exec(text)) !== null) {
-    let lat = parseInt(m[1], 10) + parseFloat(m[2]) / 60;
-    let lon = parseInt(m[4], 10) + parseFloat(m[5]) / 60;
-    if (m[3].toUpperCase() === 'S') lat = -lat;
-    if (m[6].toUpperCase() === 'W') lon = -lon;
+    const d1 = m[1], d2 = m[2], ns = m[3], d4 = m[4], d5 = m[5], ew = m[6];
+    if (!d1 || !d2 || !ns || !d4 || !d5 || !ew) continue;
+    let lat = parseInt(d1, 10) + parseFloat(d2) / 60;
+    let lon = parseInt(d4, 10) + parseFloat(d5) / 60;
+    if (ns.toUpperCase() === 'S') lat = -lat;
+    if (ew.toUpperCase() === 'W') lon = -lon;
     if (lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) coords.push([lat, lon]);
   }
   return coords;
@@ -192,7 +194,7 @@ const MONTH_MAP: Record<string, number> = {
 
 export function parseIssueDate(dateStr: string | undefined): number {
   const m = dateStr?.match(/(\d{2})(\d{4})Z\s+([A-Z]{3})\s+(\d{4})/i);
-  if (!m) return 0;
+  if (!m || !m[1] || !m[2] || !m[3] || !m[4]) return 0;
   const d = new Date(Date.UTC(
     parseInt(m[4], 10),
     MONTH_MAP[m[3].toUpperCase()] ?? 0,
@@ -296,8 +298,8 @@ export function computeHealthMap(signals: Signal[]): Record<string, CableHealthR
   const byCable: Record<string, Signal[]> = {};
 
   for (const sig of signals) {
-    if (!byCable[sig.cableId]) byCable[sig.cableId] = [];
-    byCable[sig.cableId].push(sig);
+    if (!(sig.cableId in byCable)) byCable[sig.cableId] = [];
+    byCable[sig.cableId]!.push(sig);
   }
 
   const healthMap: Record<string, CableHealthRecord> = {};
@@ -320,8 +322,11 @@ export function computeHealthMap(signals: Signal[]): Record<string, CableHealthR
 
     effectiveSignals.sort((a, b) => b.effective - a.effective);
 
-    const topScore = effectiveSignals[0].effective;
-    const topConfidence = effectiveSignals[0].confidence * effectiveSignals[0].recencyWeight;
+    const topSig = effectiveSignals[0];
+    if (!topSig) continue;
+
+    const topScore = topSig.effective;
+    const topConfidence = topSig.confidence * topSig.recencyWeight;
 
     const hasOperatorFault = effectiveSignals.some(
       (s) => s.kind === 'operator_fault' && s.effective >= 0.50,
@@ -346,9 +351,7 @@ export function computeHealthMap(signals: Signal[]): Record<string, CableHealthR
       .flatMap((s) => s.evidence)
       .slice(0, 3);
 
-    const lastUpdated = effectiveSignals
-      .map((s) => s.ts)
-      .sort((a, b) => b - a)[0];
+    const lastUpdated = Math.max(...effectiveSignals.map((s) => s.ts), 0);
 
     healthMap[cableId] = {
       status,
