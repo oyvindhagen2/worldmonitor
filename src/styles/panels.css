@@ -179,3 +179,88 @@
   width: 100%;
 }
 .wm-dl-toggle:hover { color: var(--text, #e8e8e8); }
+
+/* ----------------------------------------------------------
+   Panel Focus Feature
+   ---------------------------------------------------------- */
+.panel-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.panel-focus-btn {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 3px;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.panel-focus-btn:hover {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.panel-focus-btn:active {
+  transform: scale(0.95);
+}
+
+/* Focused panel styles */
+.panel-focused {
+  position: fixed;
+  top: 60px;
+  left: 20px;
+  right: 20px;
+  bottom: 20px;
+  z-index: 1000;
+  max-width: none;
+  width: auto !important;
+  height: auto !important;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+}
+
+.panel-focused .panel-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.panel-focused .panel-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* Focus backdrop */
+.panel-focus-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+
+.panel-focus-backdrop.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Prevent body scroll when panel is focused */
+body.has-focused-panel {
+  overflow: hidden;
+}

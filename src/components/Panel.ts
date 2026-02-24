@@ -68,6 +68,8 @@ export class Panel {
   private readonly contentDebounceMs = 150;
   private pendingContentHtml: string | null = null;
   private contentDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+  private isFocused = false;
+  private focusBackdrop: HTMLElement | null = null;
 
   constructor(options: PanelOptions) {
     this.panelId = options.id;
@@ -117,17 +119,30 @@ export class Panel {
 
     this.header.appendChild(headerLeft);
 
+    // Add focus button (right side)
+    const headerRight = document.createElement('div');
+    headerRight.className = 'panel-header-right';
+
+    const focusBtn = h('button', { className: 'panel-focus-btn', 'aria-label': t('components.panel.focusPanel') || 'Focus panel', title: t('components.panel.focusPanel') || 'Click to expand panel' }, '⛶');
+    focusBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.toggleFocus();
+    });
+    headerRight.appendChild(focusBtn);
+
     this.statusBadgeEl = document.createElement('span');
     this.statusBadgeEl.className = 'panel-data-badge';
     this.statusBadgeEl.style.display = 'none';
-    this.header.appendChild(this.statusBadgeEl);
+    headerRight.appendChild(this.statusBadgeEl);
 
     if (options.showCount) {
       this.countEl = document.createElement('span');
       this.countEl.className = 'panel-count';
       this.countEl.textContent = '0';
-      this.header.appendChild(this.countEl);
+      headerRight.appendChild(this.countEl);
     }
+
+    this.header.appendChild(headerRight);
 
     this.content = document.createElement('div');
     this.content.className = 'panel-content';
@@ -345,6 +360,50 @@ export class Panel {
     }
   }
 
+  public toggleFocus(): void {
+    if (this.isFocused) {
+      this.unfocus();
+    } else {
+      this.focus();
+    }
+  }
+
+  private focus(): void {
+    this.isFocused = true;
+    this.element.classList.add('panel-focused');
+
+    // Create backdrop if needed
+    if (!this.focusBackdrop) {
+      this.focusBackdrop = document.createElement('div');
+      this.focusBackdrop.className = 'panel-focus-backdrop';
+      document.body.appendChild(this.focusBackdrop);
+
+      // Close on backdrop click
+      this.focusBackdrop.addEventListener('click', () => this.unfocus());
+
+      // Close on Escape key
+      const escapeHandler = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') this.unfocus();
+      };
+      this.focusBackdrop.addEventListener('keydown', escapeHandler);
+      document.addEventListener('keydown', escapeHandler);
+    }
+
+    this.focusBackdrop.classList.add('visible');
+    document.body.classList.add('has-focused-panel');
+  }
+
+  private unfocus(): void {
+    this.isFocused = false;
+    this.element.classList.remove('panel-focused');
+
+    if (this.focusBackdrop) {
+      this.focusBackdrop.classList.remove('visible');
+    }
+
+    document.body.classList.remove('has-focused-panel');
+  }
+
   public setContent(html: string): void {
     if (this.pendingContentHtml === html || this.content.innerHTML === html) {
       return;
@@ -452,6 +511,15 @@ export class Panel {
       this.contentDebounceTimer = null;
     }
     this.pendingContentHtml = null;
+
+    // Clean up focus state
+    if (this.isFocused) {
+      this.unfocus();
+    }
+    if (this.focusBackdrop && this.focusBackdrop.parentNode) {
+      this.focusBackdrop.remove();
+      this.focusBackdrop = null;
+    }
 
     if (this.tooltipCloseHandler) {
       document.removeEventListener('click', this.tooltipCloseHandler);
