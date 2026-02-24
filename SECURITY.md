@@ -6,7 +6,8 @@
 | ------- | ------------------ |
 | main    | :white_check_mark: |
 
-Only the latest version on the `main` branch is actively maintained and receives security updates.
+Only the latest version on the `main` branch is actively maintained and
+receives security updates.
 
 ## Reporting a Vulnerability
 
@@ -14,9 +15,12 @@ Only the latest version on the `main` branch is actively maintained and receives
 
 If you discover a security vulnerability in World Monitor, please report it responsibly:
 
-1. **GitHub Private Vulnerability Reporting**: Use [GitHub's private vulnerability reporting](https://github.com/koala73/worldmonitor/security/advisories/new) to submit your report directly through the repository.
+1. **GitHub Private Vulnerability Reporting**: Use
+[GitHub's private vulnerability reporting](https://github.com/koala73/worldmonitor/security/advisories/new)
+to submit your report directly through the repository.
 
-2. **Direct Contact**: Alternatively, reach out to the repository owner [@koala73](https://github.com/koala73) directly through GitHub.
+2. **Direct Contact**: Alternatively, reach out to the repository owner
+[@koala73](https://github.com/koala73) directly through GitHub.
 
 ### What to Include
 
@@ -40,7 +44,8 @@ If you discover a security vulnerability in World Monitor, please report it resp
 
 ## Security Considerations
 
-World Monitor is a client-side intelligence dashboard that aggregates publicly available data. Here are the key security areas:
+World Monitor is a client-side intelligence dashboard that aggregates
+publicly available data. Here are the key security areas:
 
 ### API Keys & Secrets
 
@@ -51,7 +56,8 @@ World Monitor is a client-side intelligence dashboard that aggregates publicly a
 
 ### Edge Functions & Sebuf Handlers
 
-- All 17 domain APIs are served through Sebuf (a Proto-first RPC framework) via Vercel Edge Functions
+- All 17 domain APIs are served through Sebuf (a Proto-first RPC
+  framework) via Vercel Edge Functions
 - Edge functions and handlers should validate/sanitize all input
 - CORS headers are configured per-function
 - Rate limiting and circuit breakers protect against abuse

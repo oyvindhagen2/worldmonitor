@@ -1197,22 +1197,51 @@ The AI summarization pipeline adds content-based deduplication: headlines are ha
 
 Sentry captures unhandled exceptions and promise rejections in production, with environment-aware routing (production on `worldmonitor.app`, preview on `*.vercel.app`, disabled on localhost and Tauri desktop).
 
-The configuration includes 30+ `ignoreErrors` patterns that suppress noise from:
+The configuration includes 30+ `ignoreErrors` patterns that suppress
+noise from:
 
-- **Third-party WebView injections** — Twitter, Facebook, and Instagram in-app browsers inject scripts that reference undefined variables (`CONFIG`, `currentInset`)
-- **Browser extensions** — Chrome/Firefox extensions that fail `importScripts` or violate CSP policies
-- **WebGL context loss** — transient GPU crashes in MapLibre/deck.gl that self-recover
-- **iOS Safari quirks** — IndexedDB connection drops on background tab kills, `NotAllowedError` from autoplay policies
-- **Network transients** — `TypeError: Failed to fetch`, `TypeError: Load failed`, `TypeError: cancelled`
-- **MapLibre internal crashes** — null-access in style layers, light, and placement that originate from the map chunk
+- **Third-party WebView injections** — Twitter, Facebook, and Instagram
+  in-app browsers inject scripts that reference undefined variables
+  (`CONFIG`, `currentInset`)
+- **Browser extensions** — Chrome/Firefox extensions that fail
+  `importScripts` or violate CSP policies
+- **WebGL context loss** — transient GPU crashes in MapLibre/deck.gl
+  that self-recover
+- **iOS Safari quirks** — IndexedDB connection drops on background tab
+  kills, `NotAllowedError` from autoplay policies
+- **Network transients** — `TypeError: Failed to fetch`,
+  `TypeError: Load failed`, `TypeError: cancelled`
+- **MapLibre internal crashes** — null-access in style layers, light,
+  and placement that originate from the map chunk
 
-A custom `beforeSend` hook provides second-stage filtering: it suppresses single-character error messages (minification artifacts), `Importing a module script failed` errors from browser extensions (identified by `chrome-extension:` or `moz-extension:` in the stack trace), and MapLibre internal null-access crashes when the stack trace originates from map chunk files.
+A custom `beforeSend` hook provides second-stage filtering: it
+suppresses single-character error messages (minification artifacts),
+`Importing a module script failed` errors from browser extensions
+(identified by `chrome-extension:` or `moz-extension:` in the stack
+trace), and MapLibre internal null-access crashes when the stack trace
+originates from map chunk files.
 
-**Chunk reload guard** — after deployments, users with stale browser tabs may encounter `vite:preloadError` events when dynamically imported chunks have new content-hash filenames. The guard listens for this event and performs a one-shot page reload, using `sessionStorage` to prevent infinite reload loops. If the reload succeeds (app initializes fully), the guard flag is cleared. This recovers gracefully from stale-asset 404s without requiring users to manually refresh.
+**Chunk reload guard** — after deployments, users with stale browser
+tabs may encounter `vite:preloadError` events when dynamically imported
+chunks have new content-hash filenames. The guard listens for this event
+and performs a one-shot page reload, using `sessionStorage` to prevent
+infinite reload loops. If the reload succeeds (app initializes fully),
+the guard flag is cleared. This recovers gracefully from stale-asset 404s
+without requiring users to manually refresh.
 
-**Storage quota management** — when a device's localStorage or IndexedDB quota is exhausted (common on mobile Safari with its 5MB limit), a global `_storageQuotaExceeded` flag disables all further write attempts across both the persistent cache (IndexedDB + localStorage fallback) and the utility `saveToStorage()` function. The flag is set on the first `DOMException` with `name === 'QuotaExceededError'` or `code === 22`, and prevents cascading errors from repeated failed writes. Read operations continue normally — cached data remains accessible, only new writes are suppressed.
+**Storage quota management** — when a device's localStorage or IndexedDB
+quota is exhausted (common on mobile Safari with its 5MB limit), a global
+`_storageQuotaExceeded` flag disables all further write attempts across
+both the persistent cache (IndexedDB + localStorage fallback) and the
+utility `saveToStorage()` function. The flag is set on the first
+`DOMException` with `name === 'QuotaExceededError'` or `code === 22`,
+and prevents cascading errors from repeated failed writes. Read
+operations continue normally — cached data remains accessible, only new
+writes are suppressed.
 
-Transactions are sampled at 10% to balance observability with cost. Release tracking (`worldmonitor@{version}`) enables regression detection across deployments.
+Transactions are sampled at 10% to balance observability with cost.
+Release tracking (`worldmonitor@{version}`) enables regression detection
+across deployments.
 
 ---
 
@@ -1228,29 +1257,36 @@ vercel dev       # Runs frontend + all 60+ API edge functions
 
 Open [http://localhost:3000](http://localhost:3000)
 
-> **Note**: `vercel dev` requires the [Vercel CLI](https://vercel.com/docs/cli) (`npm i -g vercel`). If you use `npm run dev` instead, only the frontend starts — news feeds and API-dependent panels won't load. See [Self-Hosting](#self-hosting) for details.
+> **Note**: `vercel dev` requires the [Vercel CLI](https://vercel.com/docs/cli)
+> (`npm i -g vercel`). If you use `npm run dev` instead, only the
+> frontend starts — news feeds and API-dependent panels won't load. See
+> [Self-Hosting](#self-hosting) for details.
 
 ### Environment Variables (Optional)
 
-The dashboard works without any API keys — panels for unconfigured services simply won't appear. For full functionality, copy the example file and fill in the keys you need:
+The dashboard works without any API keys — panels for unconfigured
+services simply won't appear. For full functionality, copy the example
+file and fill in the keys you need:
 
 ```bash
 cp .env.example .env.local
 ```
 
-The `.env.example` file documents every variable with descriptions and registration links, organized by deployment target (Vercel vs Railway). Key groups:
+The `.env.example` file documents every variable with descriptions and
+registration links, organized by deployment target (Vercel vs Railway).
+Key groups:
 
-| Group             | Variables                                                                  | Free Tier                                  |
-| ----------------- | -------------------------------------------------------------------------- | ------------------------------------------ |
-| **AI (Local)**    | `OLLAMA_API_URL`, `OLLAMA_MODEL`                                           | Free (runs on your hardware)               |
-| **AI (Cloud)**    | `GROQ_API_KEY`, `OPENROUTER_API_KEY`                                       | 14,400 req/day (Groq), 50/day (OpenRouter) |
-| **Cache**         | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`                       | 10K commands/day                           |
-| **Markets**       | `FINNHUB_API_KEY`, `FRED_API_KEY`, `EIA_API_KEY`                           | All free tier                              |
-| **Tracking**      | `WINGBITS_API_KEY`, `AISSTREAM_API_KEY`                                    | Free                                       |
-| **Geopolitical**  | `ACLED_ACCESS_TOKEN`, `CLOUDFLARE_API_TOKEN`, `NASA_FIRMS_API_KEY`         | Free for researchers                       |
-| **Relay**         | `WS_RELAY_URL`, `VITE_WS_RELAY_URL`, `OPENSKY_CLIENT_ID/SECRET`            | Self-hosted                                |
-| **UI**            | `VITE_VARIANT`, `VITE_MAP_INTERACTION_MODE` (`flat` or `3d`, default `3d`) | N/A                                        |
-| **Observability** | `VITE_SENTRY_DSN` (optional, empty disables reporting)                     | N/A                                        |
+| Group | Variables | Free Tier |
+| --- | --- | --- |
+| AI (Local) | `OLLAMA_API_URL`, `OLLAMA_MODEL` | Free |
+| AI (Cloud) | `GROQ_API_KEY`, `OPENROUTER_API_KEY` | 14,400/day (Groq) |
+| Cache | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` | 10K commands/day |
+| Markets | `FINNHUB_API_KEY`, `FRED_API_KEY`, `EIA_API_KEY` | Free |
+| Tracking | `WINGBITS_API_KEY`, `AISSTREAM_API_KEY` | Free |
+| Geopolitical | `ACLED_ACCESS_TOKEN`, `CLOUDFLARE_API_TOKEN` | Free |
+| Relay | `WS_RELAY_URL`, `VITE_WS_RELAY_URL` | Self-hosted |
+| UI | `VITE_VARIANT`, `VITE_MAP_INTERACTION_MODE` | N/A |
+| Observability | `VITE_SENTRY_DSN` | N/A |
 
 See [`.env.example`](./.env.example) for the complete list with registration links.
 
@@ -1258,18 +1294,25 @@ See [`.env.example`](./.env.example) for the complete list with registration lin
 
 ## Self-Hosting
 
-World Monitor relies on **60+ Vercel Edge Functions** in the `api/` directory for RSS proxying, data caching, and API key isolation. Running `npm run dev` alone starts only the Vite frontend — the edge functions won't execute, and most panels (news feeds, markets, AI summaries) will be empty.
+World Monitor relies on **60+ Vercel Edge Functions** in the `api/`
+directory for RSS proxying, data caching, and API key isolation. Running
+`npm run dev` alone starts only the Vite frontend — the edge functions
+won't execute, and most panels (news feeds, markets, AI summaries) will
+be empty.
 
 ### Option 1: Deploy to Vercel (Recommended)
 
-The simplest path — Vercel runs the edge functions natively on their free tier:
+The simplest path — Vercel runs the edge functions natively on their
+free tier:
 
 ```bash
 npm install -g vercel
 vercel          # Follow prompts to link/create project
 ```
 
-Add your API keys in the Vercel dashboard under **Settings → Environment Variables**, then visit your deployment URL. The free Hobby plan supports all 60+ edge functions.
+Add your API keys in the Vercel dashboard under **Settings →
+Environment Variables**, then visit your deployment URL. The free Hobby
+plan supports all 60+ edge functions.
 
 ### Option 2: Local Development with Vercel CLI
 
@@ -1281,59 +1324,70 @@ cp .env.example .env.local   # Add your API keys
 vercel dev                   # Starts on http://localhost:3000
 ```
 
-> **Important**: Use `vercel dev` instead of `npm run dev`. The Vercel CLI emulates the edge runtime locally so all `api/` endpoints work. Plain `npm run dev` only starts Vite and the API layer won't be available.
+> **Important**: Use `vercel dev` instead of `npm run dev`. The Vercel
+> CLI emulates the edge runtime locally so all `api/` endpoints work.
+> Plain `npm run dev` only starts Vite and the API layer won't be
+> available.
 
 ### Option 3: Static Frontend Only
 
-If you only want the map and client-side features (no news feeds, no AI, no market data):
+If you only want the map and client-side features (no news feeds, no AI,
+no market data):
 
 ```bash
 npm run dev    # Vite dev server on http://localhost:5173
 ```
 
-This runs the frontend without the API layer. Panels that require server-side proxying will show "No data available". The interactive map, static data layers (bases, cables, pipelines), and browser-side ML models still work.
+This runs the frontend without the API layer. Panels that require
+server-side proxying will show "No data available". The interactive map,
+static data layers (bases, cables, pipelines), and browser-side ML
+models still work.
 
 ### Platform Notes
 
-| Platform               | Status                  | Notes                                                                                                                          |
-| ---------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| **Vercel**             | Full support            | Recommended deployment target                                                                                                  |
-| **Linux x86_64**       | Full support            | Works with `vercel dev` for local development. Desktop .AppImage available for x86_64. WebKitGTK rendering uses DMA-BUF with fallback to SHM for GPU compatibility. Font stack includes DejaVu Sans Mono and Liberation Mono for consistent rendering across distros |
-| **macOS**              | Works with `vercel dev` | Full local development                                                                                                         |
-| **Raspberry Pi / ARM** | Partial                 | `vercel dev` edge runtime emulation may not work on ARM. Use Option 1 (deploy to Vercel) or Option 3 (static frontend) instead |
-| **Docker**             | Planned                 | See [Roadmap](#roadmap)                                                                                                        |
+| Platform | Status | Notes |
+| --- | --- | --- |
+| Vercel | Full support | Recommended |
+| Linux x86_64 | Full support | Works with `vercel dev` |
+| macOS | Full support | Works with `vercel dev` |
+| Raspberry Pi/ARM | Partial | Use Vercel deploy |
+| Docker | Planned | See Roadmap |
 
 ### Railway Relay (Optional)
 
-For live AIS vessel tracking and OpenSky aircraft data, deploy the WebSocket relay on Railway:
+For live AIS vessel tracking and OpenSky aircraft data, deploy the
+WebSocket relay on Railway:
 
 ```bash
 # On Railway, deploy with:
 node scripts/ais-relay.cjs
 ```
 
-Set `WS_RELAY_URL` (server-side, HTTPS) and `VITE_WS_RELAY_URL` (client-side, WSS) in your environment. Without the relay, AIS and OpenSky layers won't show live data, but all other features work normally.
+Set `WS_RELAY_URL` (server-side, HTTPS) and `VITE_WS_RELAY_URL`
+(client-side, WSS) in your environment. Without the relay, AIS and
+OpenSky layers won't show live data, but all other features work
+normally.
 
 ---
 
 ## Tech Stack
 
-| Category              | Technologies                                                                                                                                   |
-| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Frontend**          | TypeScript, Vite, deck.gl (WebGL 3D globe), MapLibre GL, vite-plugin-pwa (service worker + manifest)                                           |
-| **Desktop**           | Tauri 2 (Rust) with Node.js sidecar, OS keychain integration (keyring crate), native TLS (reqwest)                                             |
-| **AI/ML**             | Ollama / LM Studio (local, OpenAI-compatible), Groq (Llama 3.1 8B), OpenRouter (fallback), Transformers.js (browser-side T5, NER, embeddings) |
-| **Caching**           | Redis (Upstash) — 3-tier cache with in-memory + Redis + upstream, cross-user AI deduplication. Vercel CDN (s-maxage). Service worker (Workbox) |
-| **Geopolitical APIs** | OpenSky, GDELT, ACLED, UCDP, HAPI, USGS, GDACS, NASA EONET, NASA FIRMS, Polymarket, Cloudflare Radar, WorldPop                                 |
-| **Market APIs**       | Yahoo Finance (equities, forex, crypto), CoinGecko (stablecoins), mempool.space (BTC hashrate), alternative.me (Fear & Greed)                  |
-| **Threat Intel APIs** | abuse.ch (Feodo Tracker, URLhaus), AlienVault OTX, AbuseIPDB, C2IntelFeeds                                                                     |
-| **Economic APIs**     | FRED (Federal Reserve), EIA (Energy), Finnhub (stock quotes)                                                                                   |
-| **Localization**      | i18next (16 languages: en, fr, de, es, it, pl, pt, nl, sv, ru, ar, zh, ja, tr, th, vi), RTL support, lazy-loaded bundles, native-language feeds for 7 locales |
-| **API Contracts**     | Protocol Buffers (92 proto files, 17 services), sebuf HTTP annotations, buf CLI (lint + breaking checks), auto-generated TypeScript clients/servers + OpenAPI 3.1.0 docs |
-| **Analytics**         | PostHog (privacy-first, typed event schemas, pseudonymous identity, ad-blocker bypass via reverse proxy, offline queue for desktop)             |
-| **Deployment**        | Vercel Edge Functions (60+ endpoints) + Railway (WebSocket relay) + Tauri (macOS/Windows/Linux) + PWA (installable)                            |
-| **Finance Data**      | 92 stock exchanges, 19 financial centers, 13 central banks, 10 commodity hubs, 64 Gulf FDI investments                                         |
-| **Data**              | 150+ RSS feeds, ADS-B transponders, AIS maritime data, VIIRS satellite imagery, 8 live YouTube streams                                         |
+| Category | Technologies |
+| --- | --- |
+| Frontend | TypeScript, Vite, deck.gl, MapLibre GL |
+| Desktop | Tauri 2, OS keychain, native TLS |
+| AI/ML | Ollama, Groq, OpenRouter, Transformers.js |
+| Caching | Redis (Upstash), Vercel CDN, Workbox |
+| Geopolitical APIs | OpenSky, GDELT, ACLED, UCDP, NASA |
+| Market APIs | Yahoo Finance, CoinGecko, mempool.space |
+| Threat Intel | abuse.ch, AlienVault OTX, AbuseIPDB |
+| Economic | FRED, EIA, Finnhub |
+| Localization | i18next (16 languages, RTL support) |
+| API Contracts | Protocol Buffers, Sebuf, OpenAPI 3.1 |
+| Analytics | PostHog (privacy-first, typed schemas) |
+| Deployment | Vercel + Railway + Tauri + PWA |
+| Finance Data | 92 exchanges, 19 centers, 13 banks |
+| Data | 150+ RSS, ADS-B, AIS, satellite |
 
 ---
 
@@ -1341,7 +1395,10 @@ Set `WS_RELAY_URL` (server-side, HTTPS) and `VITE_WS_RELAY_URL` (client-side, WS
 
 ## Contributing
 
-Contributions welcome! See [CONTRIBUTING.md](./CONTRIBUTING.md) for detailed guidelines, including the Sebuf RPC framework workflow, how to add data sources and RSS feeds, and our AI-assisted development policy. The project also maintains a [Code of Conduct](./CODE_OF_CONDUCT.md) and [Security Policy](./SECURITY.md) for responsible vulnerability disclosure.
+Contributions welcome! See [CONTRIBUTING.md](./CONTRIBUTING.md) for
+guidelines on data sources, RSS feeds, and AI-assisted development. The
+project maintains a [Code of Conduct](./CODE_OF_CONDUCT.md) and
+[Security Policy](./SECURITY.md).
 
 ```bash
 # Development
@@ -1373,7 +1430,8 @@ npm run desktop:package:macos:full:sign
 npm run desktop:package:windows:full:sign
 ```
 
-Desktop release details, signing hooks, variant outputs, and clean-machine validation checklist:
+Desktop release details, signing hooks, variant outputs, and
+clean-machine validation checklist:
 
 - [docs/RELEASE_PACKAGING.md](./docs/RELEASE_PACKAGING.md)
 
@@ -1383,10 +1441,10 @@ Desktop release details, signing hooks, variant outputs, and clean-machine valid
 
 - [x] 60+ API edge functions for programmatic access
 - [x] Tri-variant system (geopolitical + tech + finance)
-- [x] Market intelligence (macro signals, ETF flows, stablecoin peg monitoring)
+- [x] Market intelligence (macro signals, ETF flows, stablecoin pegs)
 - [x] Railway relay for WebSocket and blocked-domain proxying
 - [x] CORS origin allowlist and security hardening
-- [x] Native desktop application (Tauri) with OS keychain + authenticated sidecar
+- [x] Native desktop application (Tauri) with OS keychain
 - [x] Progressive Web App with offline map support and installability
 - [x] Bandwidth optimization (CDN caching, gzip relay, staggered polling)
 - [x] 3D WebGL globe visualization (deck.gl)
@@ -1394,22 +1452,22 @@ Desktop release details, signing hooks, variant outputs, and clean-machine valid
 - [x] Historical playback via IndexedDB snapshots
 - [x] Live YouTube stream detection with desktop embed bridge
 - [x] Country brief pages with AI-generated intelligence dossiers
-- [x] Local-first country detection (browser-side ray-casting, no network dependency)
+- [x] Local-first country detection (browser-side ray-casting)
 - [x] Climate anomaly monitoring (15 conflict-prone zones)
 - [x] Displacement tracking (UNHCR/HAPI origins & hosts)
 - [x] Country brief export (JSON, CSV, PNG, PDF)
-- [x] Cyber threat intelligence layer (Feodo Tracker, URLhaus, OTX, AbuseIPDB, C2IntelFeeds)
+- [x] Cyber threat intelligence layer (abuse.ch, OTX, AbuseIPDB)
 - [x] Trending keyword spike detection with baseline anomaly alerting
 - [x] Oil & energy analytics (EIA: WTI, Brent, production, inventory)
 - [x] Population exposure estimation (WorldPop density data)
 - [x] Country search in Cmd+K with direct brief navigation
 - [x] Entity index with cross-source correlation and confidence scoring
-- [x] Finance variant with 92 stock exchanges, 19 financial centers, 13 central banks, and commodity hubs
-- [x] Gulf FDI investment database (64 Saudi/UAE infrastructure investments mapped globally)
+- [x] Finance variant (92 exchanges, 19 centers, 13 central banks)
+- [x] Gulf FDI investment database (64 investments mapped globally)
 - [x] AIS maritime chokepoint detection and vessel density grid
 - [x] Runtime feature toggles for 14 data sources
 - [x] Panel height resizing with persistent layout state
-- [x] Live webcam surveillance grid (19 geopolitical hotspot streams with region filtering)
+- [x] Live webcam surveillance grid (19 hotspot streams)
 - [x] Ultra-wide monitor layout (L-shaped panel wrapping on 2000px+ screens)
 - [x] Linux desktop app (.AppImage)
 - [x] Dark/light theme toggle with persistent preference
@@ -1417,37 +1475,37 @@ Desktop release details, signing hooks, variant outputs, and clean-machine valid
 - [x] Panel drag-and-drop reordering with persistent layout
 - [x] Map pin mode for fixed map positioning
 - [x] Virtual scrolling for news panels (DOM recycling, pooled elements)
-- [x] Local LLM support (Ollama / LM Studio) with automatic model discovery and 4-tier fallback chain
+- [x] Local LLM support (Ollama / LM Studio) with 4-tier fallback
 - [x] Settings window with dedicated LLMs, API Keys, and Debug tabs
 - [x] Consolidated keychain vault (single OS prompt on startup)
 - [x] Cross-window secret synchronization (main ↔ settings)
 - [x] API key verification pipeline with soft-pass on network errors
-- [x] Proto-first API contracts (92 proto files, 17 service domains, auto-generated TypeScript + OpenAPI docs)
-- [x] USNI Fleet Intelligence (weekly deployment reports merged with live AIS tracking)
-- [x] Aircraft enrichment via Wingbits (military confidence classification)
-- [x] Undersea cable health monitoring (NGA navigational warnings + AIS cable ship tracking)
-- [x] Dynamic Open Graph images for social sharing (SVG card generation with CII scores)
-- [x] Storage quota management (graceful degradation on exhausted localStorage/IndexedDB)
-- [x] Chunk reload guard (one-shot recovery from stale-asset 404s after deployments)
-- [x] PizzINT activity monitor with DEFCON-style scoring and GDELT bilateral tension tracking
-- [x] Bot protection middleware (edge-level crawler blocking with social preview exceptions)
-- [x] In-flight request deduplication on relay (prevents upstream API stampede from concurrent clients)
-- [x] Instant flat-render news panels (ML clustering runs async, items appear immediately)
-- [x] Cable health scoring algorithm (time-decay weighted signals from NGA warnings with cos-lat distance matching)
-- [x] Thai and Vietnamese localization (16 total languages, 1,361 keys per locale)
-- [x] Native-language RSS feeds for Turkish, Polish, Russian, Thai, and Vietnamese locales
-- [x] Desktop sidecar RSS proxy (local feed fetching without cloud fallback)
-- [x] Negative caching and version discovery for UCDP upstream API resilience
-- [x] XRP (Ripple) added to crypto market tracking
-- [x] Shared Upstash Redis caching layer across all 37 RPC handlers with parameterized cache keys
-- [x] PostHog product analytics with typed event schemas, API key stripping, and ad-blocker bypass
-- [x] Opt-in intelligence alert popups (default off, toggle in dropdown header)
-- [x] Linux WebKitGTK DMA-BUF rendering with SHM fallback and cross-distro font stack
-- [x] Consolidated `--font-mono` CSS variable for cross-platform typographic consistency
-- [x] Dedup coordinate precision increased to 0.1° (~10km) for finer-grained event matching
-- [x] Community guidelines (CONTRIBUTING.md, CODE_OF_CONDUCT.md, SECURITY.md)
-- [x] Yahoo Finance staggered request batching to prevent 429 rate limiting
-- [x] Panel base class retry indicator (`showRetrying`) for visual feedback during data refresh
+- [x] Proto-first API contracts (92 proto files, OpenAPI docs)
+- [x] USNI Fleet Intelligence (weekly reports + live AIS)
+- [x] Aircraft enrichment via Wingbits
+- [x] Undersea cable health monitoring (NGA + AIS)
+- [x] Dynamic Open Graph images for social sharing
+- [x] Storage quota management (graceful degradation)
+- [x] Chunk reload guard (stale-asset recovery)
+- [x] PizzINT activity monitor (DEFCON-style scoring)
+- [x] Bot protection middleware (crawler blocking)
+- [x] In-flight request deduplication on relay
+- [x] Instant flat-render news panels (async ML)
+- [x] Cable health scoring algorithm
+- [x] Thai and Vietnamese localization (16 total)
+- [x] Native-language RSS feeds (5 locales)
+- [x] Desktop sidecar RSS proxy
+- [x] Negative caching for UCDP resilience
+- [x] XRP (Ripple) crypto market tracking
+- [x] Shared Upstash Redis caching layer
+- [x] PostHog product analytics (typed schemas)
+- [x] Opt-in intelligence alert popups
+- [x] Linux WebKitGTK DMA-BUF rendering
+- [x] Consolidated `--font-mono` CSS variable
+- [x] Dedup coordinate precision (0.1° / ~10km)
+- [x] Community guidelines (CONTRIBUTING.md, etc)
+- [x] Yahoo Finance staggered request batching
+- [x] Panel base class retry indicator
 - [ ] Mobile-optimized views
 - [ ] Push notifications for critical alerts
 - [ ] Self-hosted Docker image
@@ -1479,17 +1537,15 @@ GNU Affero General Public License v3.0 (AGPL-3.0) — see [LICENSE](LICENSE) for
 
 ---
 
-<p align="center">
-  <a href="https://worldmonitor.app">worldmonitor.app</a> &nbsp;·&nbsp;
-  <a href="https://tech.worldmonitor.app">tech.worldmonitor.app</a> &nbsp;·&nbsp;
-  <a href="https://finance.worldmonitor.app">finance.worldmonitor.app</a>
-</p>
+---
+
+## Links
+
+[worldmonitor.app](https://worldmonitor.app) ·
+[tech.worldmonitor.app](https://tech.worldmonitor.app) ·
+[finance.worldmonitor.app](https://finance.worldmonitor.app)
 
 ## Star History
 
-<a href="https://api.star-history.com/svg?repos=koala73/worldmonitor&type=Date">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=koala73/worldmonitor&type=Date&type=Date&theme=dark" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=koala73/worldmonitor&type=Date&type=Date" />
- </picture>
-</a>
+[![Star History
+Chart](https://api.star-history.com/svg?repos=koala73/worldmonitor&type=Date)](https://api.star-history.com/svg?repos=koala73/worldmonitor&type=Date)
